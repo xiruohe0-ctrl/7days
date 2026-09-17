@@ -170,7 +170,6 @@
 
   function getStoryNodes() {
     return {
-      // 初始纯黑幕，只有“睁开眼睛”
       start_screen: {
         text: "四周是一片沉重的绝对黑暗。空气里弥漫着淡淡的铁锈与尘土味。耳鸣声像潮水般在脑海中退去。<br><br>你什么也记不起来了。",
         choices: [
@@ -181,7 +180,6 @@
       intro: {
         text: "凌晨两点零七分。<br>你坐在自家客厅的沙发上。灯开着。你记得自己关了灯才睡的。<br><br>你面前：<br>【地毯】：茶几到沙发脚之间，一片深褐色湿痕，约两个巴掌大。触感冰凉黏稠。<br>【右手】：食指和中指第二节有干涸血痂。指甲缝里有暗红色碎屑。<br>【防盗门】：锁舌完全缩回。没锁。门缝里渗进来一丝凉风。<br><br>门外：指甲刮门板的声音。一下。一下。像在数数。<br>你的大脑在空转。你记不起过去两小时发生了什么。",
         onEnter: () => {
-          // 睁开眼睛后，正式显示并激活倒计时
           document.getElementById('time-display').classList.remove('hidden');
           sys.updateTime(0);
         },
@@ -299,21 +297,15 @@
     document.getElementById('story-content').classList.remove('text-red-400');
     
     storyNodesRef = getStoryNodes();
-    // 初始状态隐藏时间显示，等待睁开眼睛再展示
     document.getElementById('time-display').classList.add('hidden');
     renderNode('start_screen');
   }
 
   function renderNode(nodeId) {
     const node = storyNodesRef[nodeId];
-    if (node.onEnter) {
-      node.onEnter();
-    }
 
-    const optionsBox = document.getElementById('options-container');
-    optionsBox.innerHTML = ''; 
-    
-    if (state.timeRemaining < 0 && !node.isEnding && nodeId !== 'end_D') {
+    // 核心修改：只要时间 <= 0，且不是在结局或者开场黑屏阶段，直接强制触发结局 D！
+    if (state.timeRemaining <= 0 && !node.isEnding && nodeId !== 'end_D' && nodeId !== 'start_screen') {
       sys.shake('heavy');
       sys.vibrate([200, 100, 200, 100, 500]);
       typeWriter("门锁发出一声不堪重负的脆响。时间到了。", () => {
@@ -321,6 +313,13 @@
       });
       return;
     }
+
+    if (node.onEnter) {
+      node.onEnter();
+    }
+
+    const optionsBox = document.getElementById('options-container');
+    optionsBox.innerHTML = ''; 
 
     typeWriter(node.text, () => {
       if (node.isEnding) {
@@ -436,7 +435,6 @@
     }
   }
 
-  // 页面加载启动游戏，停在黑屏“睁开眼睛”状态
   window.onload = function() {
     startGame();
   };
