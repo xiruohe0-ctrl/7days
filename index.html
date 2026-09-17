@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -204,7 +204,7 @@
         choices: [{ text: "转身看着屋内...", next: "phase2_hub", cost: 0 }]
       },
 
-      // 第二轮自由探索中枢：随时可以回客厅，随时可以自主选择是否进入终局
+      // 自由探索中枢：绝对不强制锁定，选项全部动态受控于 explored
       phase2_hub: {
         text: "屋里死一般寂静。你现在必须仔细查清状况，或者随时准备迎接门外的变故。",
         choices: [
@@ -219,10 +219,10 @@
       p2_balcony: {
         text: "推拉门干涩地响。阳台上没有人。洗衣机旁有一只男士皮鞋，鞋底沾着暗红色，鞋码42——你穿40。<br>你探头往下看。楼下绿化带里有两个人影在用手电筒照地面。角落排水口有明显的拖拽痕迹。",
         onEnter: () => { sys.addClue({id:'c_shoe', text:'42码沾血男鞋(你穿40)'}); state.explored['balcony'] = true; },
-        choices: [{ text: "退回客厅", next: "phase2_hub", cost: 0 }]
+        choices: [{ text: "攥紧拳头，退回客厅", next: "phase2_hub", cost: 0 }]
       },
       p2_kitchen: {
-        text: "水龙头拧开。水呈淡粉色，铁锈味冲鼻子。水槽下水口有血丝缠在滤网上。<br>冰箱上贴着一项便利贴，不是你的字迹：<br>『别喝厨房的水 别开灯 他在灯下看得见你』<br>你猛地关掉客厅的灯。黑暗中，阳台方向有微弱的金属反光。",
+        text: "水龙头拧开。水呈淡粉色，铁锈味冲鼻子。水槽下水口有血丝缠在滤网上。<br>冰箱上贴着一张便利贴，不是你的字迹：<br>『别喝厨房的水 别开灯 他在灯下看得见你』<br>你猛地关掉客厅的灯。黑暗中，阳台方向有微弱的金属反光。",
         onEnter: () => { sys.addClue({id:'c_note', text:'纸条：别开灯，他在灯下看你'}); state.explored['kitchen'] = true; },
         choices: [{ text: "打开灯，退回客厅", next: "phase2_hub", cost: 0 }]
       },
@@ -234,7 +234,7 @@
       p2_table: {
         text: "茶几底下压着一张门禁卡。卡面上印着“3F-301”——你隔壁的女租客。门禁卡上有一点血迹。<br>翻过来看背面，用圆珠笔写了一行小字：<br>『他在你家 别出声 我打了110 别开灯』",
         onEnter: () => { sys.addClue({id:'c_301', text:'301门禁卡背面警告字迹'}); state.explored['table'] = true; },
-        choices: [{ text: "攥紧卡片，退回客厅", next: "phase2_hub", cost: 0 }]
+        choices: [{ text: "攥紧卡片站起来，退回客厅", next: "phase2_hub", cost: 0 }]
       },
 
       phase3_climax: {
@@ -309,6 +309,7 @@
       return;
     }
 
+    // 经典沉浸模式：先打字，打字完成后再把选项渲染出来
     typeWriter(node.text, () => {
       if (node.isEnding) {
         optionsBox.innerHTML = `<button onclick="startGame()" class="choice-btn w-full bg-red-950 text-red-200 p-4 rounded font-bold tracking-widest border border-red-900 mt-6">时间重置 (再次挑战轮回)</button>`;
@@ -316,7 +317,7 @@
       }
 
       node.choices.forEach(choice => {
-        // 如果是探索过的地方，隐藏该选项
+        // 如果是探索过的地方，跳过不显示
         if (choice.key && state.explored[choice.key]) return; 
 
         const btn = document.createElement('button');
@@ -333,6 +334,7 @@
     });
   }
 
+  // 稳健的打字机特效，只有打字结束才会触发 callback 显示选项
   function typeWriter(htmlContent, callback) {
     const container = document.getElementById('story-content');
     container.innerHTML = '';
