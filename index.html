@@ -103,16 +103,16 @@
         <h1 class="text-xl md:text-2xl font-bold tracking-[0.2em] text-neutral-400">两点零七分</h1>
         <div id="time-display" class="text-red-500 text-sm tracking-widest mt-1 font-mono glitch hidden">剩余时间: 07:00</div>
       </div>
-      <button onclick="toggleClues()" class="text-xs text-neutral-500 hover:text-red-400 border border-neutral-800 px-2 py-1 rounded transition">证据板 (<span id="clue-count">0</span>)</button>
+      <button onclick="toggleClues()" class="text-xs text-neutral-500 hover:text-red-400 border border-neutral-800 px-2.5 py-1 rounded transition">证据板 (<span id="clue-count">0</span>)</button>
     </div>
 
-    <!-- 证据板 (默认隐藏) -->
-    <div id="clues-panel" class="hidden absolute top-20 right-6 w-72 bg-neutral-950 border border-red-900/50 rounded p-4 shadow-2xl z-20 text-xs text-neutral-400">
-      <div class="font-bold text-red-500 mb-2 border-b border-red-900/30 pb-1 flex justify-between">
+    <!-- 证据板 (响应式自适应弹窗，点击头部可直接关闭) -->
+    <div id="clues-panel" class="hidden absolute top-20 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-6 w-80 max-w-[90vw] bg-neutral-950 border border-red-900/50 rounded p-4 shadow-2xl z-20 text-xs text-neutral-400">
+      <div onclick="toggleClues()" class="font-bold text-red-500 mb-2 border-b border-red-900/30 pb-1 flex justify-between items-center cursor-pointer hover:text-red-400">
         <span>已掌握逻辑证据</span>
-        <span class="text-[10px] text-neutral-600">点击关闭</span>
+        <span class="text-[10px] text-neutral-500 underline">点击关闭 [X]</span>
       </div>
-      <ul id="clues-list" class="space-y-1.5 list-disc pl-4 leading-relaxed">
+      <ul id="clues-list" class="space-y-1.5 list-disc pl-4 leading-relaxed max-h-48 overflow-y-auto">
         <li class="italic text-neutral-600">暂无线索，请开始探索...</li>
       </ul>
       <div id="conflict-warning" class="mt-3 p-2 bg-red-950/50 border border-red-800 rounded text-red-300 hidden">
@@ -132,13 +132,12 @@
   </div>
 
 <script>
-  // 游戏全局状态
   let state = {
     timeRemaining: 7, 
     clues: [],
     phase2Actions: 0,
     isTyping: false,
-    visited: {}
+    explored: {}
   };
 
   const sys = {
@@ -179,124 +178,139 @@
     }
   };
 
-  // 游戏剧本网
-  const storyNodes = {
-    intro: {
-      text: "凌晨两点零七分。<br>你坐在自家客厅的沙发上。灯开着。你记得自己关了灯才睡的。<br><br>你面前：<br>【地毯】：茶几到沙发脚之间，一片深褐色湿痕，约两个巴掌大。触感冰凉黏稠。<br>【右手】：食指和中指第二节有干涸血痂。指甲缝里有暗红色碎屑。<br>【防盗门】：锁舌完全缩回。没锁。门缝里渗进来一丝凉风。<br><br>门外：指甲刮门板的声音。一下。一下。像在数数。<br>你的大脑在空转。你记不起过去两小时发生了什么。",
-      choices: [
-        { text: "检查自己的身体状况 (耗时1分钟)", next: "p1_body", cost: 1 },
-        { text: "检查手机通话与照片 (耗时1分钟)", next: "p1_phone", cost: 1 },
-        { text: "走向防盗门听门外动静 (耗时1分钟)", next: "p1_door", cost: 1 }
-      ]
-    },
-    
-    p1_body: {
-      text: "你摸后脑——肿了一个包，指腹按上去有波动感。不是摔的，像被钝器击打。<br>你走向玄关全身镜。镜子里你脸色灰白。你眨了一下眼。镜中的你，过了将近两秒才眨。<br>你凑近看自己的瞳孔——左眼瞳孔比右眼大。对光反应迟钝。<br>脑震荡。你确定自己有脑震荡了。",
-      onEnter: () => { sys.addClue({id:'c_injury', text:'后脑钝器伤，左瞳散大'}); sys.addClue({id:'c_mirror_delay', text:'镜面动作延迟'}); },
-      choices: [{ text: "冷静下来，环顾四周...", next: "phase2_hub", cost: 0 }]
-    },
-    p1_phone: {
-      text: "23:47有一条没发出去的微信。通话记录里，23:51有一通已接来电，号码显示：“自己”。<br>你回拨。响了四声，接了。<br>是你自己的声音：“听好，砸你的人进了你家，锁坏了，他随时能进来。后阳台能逃——”通话断了。<br>你再看通话记录——刚才的记录消失了，干干净净。<br>相册里有一张23:49拍的天花板照片，角落里垂着一只手。",
-      onEnter: () => { sys.addClue({id:'c_call', text:'自己打来的警告电话'}); sys.addClue({id:'c_photo', text:'23:49天花板有一只手'}); },
-      choices: [{ text: "放下手机，环顾四周...", next: "phase2_hub", cost: 0 }]
-    },
-    p1_door: {
-      text: "你站在门后。刮门板的声音停了。一个闷闷的声音贴在门缝上：“你醒了吗？”<br>是老周。隔壁302的租客。<br>“是我。你家里是不是有血？”老周说，“十二点半，我听见你屋里打架，那人是从阳台进的。我报了警，他们让我看着你别出事。你别开门，等我来。”<br>脚步声远去。你站在门后僵住了。老周说“等我来”，但他刚才是从门外来的，走的时候是往楼梯上走的。302明明在你楼下。",
-      onEnter: () => { sys.addClue({id:'c_zhou_pos', text:'老周出现在楼上(302在楼下)'}); sys.addClue({id:'c_zhou_balcony', text:'老周说凶手从阳台进'}); },
-      choices: [{ text: "转身看着屋内...", next: "phase2_hub", cost: 0 }]
-    },
-
-    // 第二轮中枢（支持多次检查不同地点，动作达2个或时间<=4时自动转化为进入终局）
-    phase2_hub: {
-      text: "屋里死一般寂静。你现在必须尽快查清状况。",
-      onEnter: () => {
-        if(state.phase2Actions >= 2 || state.timeRemaining <= 4) {
-          storyNodes.phase2_hub.text = "时间不多了。门外的气氛变了，沉重的脚步声停在门外。你必须立刻做出决断。";
-          storyNodes.phase2_hub.choices = [
-            { text: "👉 准备迎接最终的抉择...", next: "phase3_climax", cost: 0 }
-          ];
-        }
+  // 生成全新的剧本对象实例，杜绝全局污染和多次游戏状态残留
+  function getStoryNodes() {
+    return {
+      intro: {
+        text: "凌晨两点零七分。<br>你坐在自家客厅的沙发上。灯开着。你记得自己关了灯才睡的。<br><br>你面前：<br>【地毯】：茶几到沙发脚之间，一片深褐色湿痕，约两个巴掌大。触感冰凉黏稠。<br>【右手】：食指和中指第二节有干涸血痂。指甲缝里有暗红色碎屑。<br>【防盗门】：锁舌完全缩回。没锁。门缝里渗进来一丝凉风。<br><br>门外：指甲刮门板的声音。一下。一下。像在数数。<br>你的大脑在空转。你记不起过去两小时发生了什么。",
+        choices: [
+          { text: "检查自己的身体状况 (耗时1分钟)", next: "p1_body", cost: 1 },
+          { text: "检查手机通话与照片 (耗时1分钟)", next: "p1_phone", cost: 1 },
+          { text: "走向防盗门听门外动静 (耗时1分钟)", next: "p1_door", cost: 1 }
+        ]
       },
-      choices: [
-        { text: "去后阳台查看 (耗时1分钟)", next: "p2_balcony", cost: 1, hideIf: 'p2_balcony' },
-        { text: "去厨房查看水槽 (耗时1分钟)", next: "p2_kitchen", cost: 1, hideIf: 'p2_kitchen' },
-        { text: "再次检查玄关镜子 (耗时1分钟)", next: "p2_mirror", cost: 1, hideIf: 'p2_mirror' },
-        { text: "趴下检查茶几底部 (耗时1分钟)", next: "p2_table", cost: 1, hideIf: 'p2_table' }
-      ]
-    },
-
-    p2_balcony: {
-      text: "推拉门干涩地响。阳台上没有人。洗衣机旁有一只男士皮鞋，鞋底沾着暗红色，鞋码42——你穿40。<br>你探头往下看。楼下绿化带里有两个人影在用手电筒照地面。角落排水口有明显的拖拽痕迹。",
-      onEnter: () => { sys.addClue({id:'c_shoe', text:'42码沾血男鞋(你穿40)'}); state.phase2Actions++; state.p2_balcony=true; },
-      choices: [{ text: "退回客厅", next: "phase2_hub", cost: 0 }]
-    },
-    p2_kitchen: {
-      text: "水龙头拧开。水呈淡粉色，铁锈味冲鼻子。水槽下水口有血丝缠在滤网上。<br>冰箱上贴着一项便利贴，不是你的字迹：<br>『别喝厨房的水 别开灯 他在灯下看得见你』<br>你猛地关掉客厅的灯。黑暗中，阳台方向有微弱的金属反光。",
-      onEnter: () => { sys.addClue({id:'c_note', text:'纸条：别开灯，他在灯下看你'}); state.phase2Actions++; state.p2_kitchen=true; },
-      choices: [{ text: "打开灯，退回客厅", next: "phase2_hub", cost: 0 }]
-    },
-    p2_mirror: {
-      text: "借着窗外路灯光看镜子。你的倒影没有呼吸。你盯着看了十秒，胸腔在起伏，镜中的“你”一动不动。<br>你凑近镜面，鼻尖几乎贴上玻璃。镜面上有雾气，但雾气不是从你这边来的。<br>是从镜子里面，往外哈的。",
-      onEnter: () => { sys.addClue({id:'c_mirror_breath', text:'镜内独立起雾，无呼吸'}); state.phase2Actions++; state.p2_mirror=true; sys.shake('light'); sys.vibrate(200); },
-      choices: [{ text: "猛地后退", next: "phase2_hub", cost: 0 }]
-    },
-    p2_table: {
-      text: "茶几底下压着一张门禁卡。卡面上印着“3F-301”——你隔壁的女租客。门禁卡上有一点血迹。<br>翻过来看背面，用圆珠笔写了一行小字：<br>『他在你家 别出声 我打了110 别开灯』",
-      onEnter: () => { sys.addClue({id:'c_301', text:'301门禁卡背面警告字迹'}); state.phase2Actions++; state.p2_table=true; },
-      choices: [{ text: "攥紧卡片站起来", next: "phase2_hub", cost: 0 }]
-    },
-
-    // 终局抉择
-    phase3_climax: {
-      text: "【极度危险】<br>信息已经交汇。门外传来了异样的动静，你必须立刻做出决定！",
-      onEnter: () => { 
-        document.getElementById('story-content').classList.add('text-red-400'); 
-        sys.shake('heavy'); 
-        sys.vibrate([100,50,100,50,300]); 
+      
+      p1_body: {
+        text: "你摸后脑——肿了一个包，指腹按上去有波动感。不是摔的，像被钝器击打。<br>你走向玄关全身镜。镜子里你脸色灰白。你眨了一下眼。镜中的你，过了将近两秒才眨。<br>你凑近看自己的瞳孔——左眼瞳孔比右眼大。对光反应迟钝。<br>脑震荡。你确定自己有脑震荡了。",
+        onEnter: () => { sys.addClue({id:'c_injury', text:'后脑钝器伤，左瞳散大'}); sys.addClue({id:'c_mirror_delay', text:'镜面动作延迟'}); },
+        choices: [{ text: "冷静下来，环顾四周...", next: "phase2_hub", cost: 0 }]
       },
-      choices: [
-        { text: "信任老周，开门让他进来", next: "end_A", cost: state.timeRemaining },
-        { text: "冒险从后阳台结绳逃生", next: "end_B", cost: state.timeRemaining },
-        { text: "关掉所有灯，留在屋内绝对不动", next: "end_C", cost: state.timeRemaining }
-      ]
-    },
+      p1_phone: {
+        text: "23:47有一条没发出去的微信。通话记录里，23:51有一通已接来电，号码显示：“自己”。<br>你回拨。响了四声，接了。<br>是你自己的声音：“听好，砸你的人进了你家，锁坏了，他随时能进来。后阳台能逃——”通话断了。<br>你再看通话记录——刚才的记录消失了，干干净净。<br>相册里有一张23:49拍的天花板照片，角落里垂着一只手。",
+        onEnter: () => { sys.addClue({id:'c_call', text:'自己打来的警告电话'}); sys.addClue({id:'c_photo', text:'23:49天花板有一只手'}); },
+        choices: [{ text: "放下手机，环顾四周...", next: "phase2_hub", cost: 0 }]
+      },
+      p1_door: {
+        text: "你站在门后。刮门板的声音停了。一个闷闷的声音贴在门缝上：“你醒了吗？”<br>是老周。隔壁302的租客。<br>“是我。你家里是不是有血？”老周说，“十二点半，我听见你屋里打架，那人是从阳台进的。我报了警，他们让我看着你别出事。你别开门，等我来。”<br>脚步声远去。你站在门后僵住了。老周说“等我来”，但他刚才是从门外来的，走的时候是往楼梯上走的。302明明在你楼下。",
+        onEnter: () => { sys.addClue({id:'c_zhou_pos', text:'老周出现在楼上(302在楼下)'}); sys.addClue({id:'c_zhou_balcony', text:'老周说凶手从阳台进'}); },
+        choices: [{ text: "转身看着屋内...", next: "phase2_hub", cost: 0 }]
+      },
 
-    // 结局定义
-    end_A: {
-      text: "<strong class='text-red-500 text-xl'>【结局 A：猎人与猎物】</strong><br><br>你解锁开门。老周站在门外，手里拿着一根高尔夫球杆。他进门，目光停在沙发后面半秒。<br>“你往哪看？”<br>“没、没什么。”老周走向你，“我检查了楼道，在楼梯上蹭到了血。”<br>“你说报警了就在楼下等着，但你出现在楼上。”<br>他沉默了三秒。球杆抬起来了。<br><br>【真相判定】：老周是三天前入室抢劫杀人的嫌疑犯。他杀了301的女人，逃到你家时砸晕了你。301女人死前爬进你家，死在你沙发后面。老周敲门是为了确认你是否会暴露他。球杆落下的时候你终于明白：指甲刮门板的声音不是老周在敲门——是301女人死前用指甲刮的，她的尸体就靠在门内侧。",
-      isEnding: true
-    },
-    end_B: {
-      text: "<strong class='text-amber-500 text-xl'>【结局 B：幸存者的拼图】</strong><br><br>你用床单结绳翻出阳台。下降到二楼时绳子断了，你摔在绿化带里，脚踝剧痛，但你活了。你爬出小区报警。<br><br>三天后你回来。警察告诉你，302的老周死在自己屋里，凶手疑似入室盗窃杀人。<br>你想起老周敲门时说“他从阳台进的”。他怎么知道？因为他杀了301的女人后，从你家阳台翻进了302，杀了老周，再翻回来敲你的门。<br><br>【真相判定】：你活下来了。老周不是好人，但你也不是完全无辜——你那天晚上其实醒过一次，看见有人翻进来，你以为是梦，翻了个身继续睡。如果你当时起来，301的女人可能还活着。你搬了家，但每个凌晨两点零七分，你都会惊醒。",
-      isEnding: true
-    },
-    end_C: {
-      text: "<strong class='text-blue-400 text-xl'>【结局 C：沉默同盟】</strong><br><br>你关了所有灯。不发出声音。门外安静了很久。然后，钥匙插进门锁的声音转动。<br>一个人走到客厅中央。一个声音在你耳边：“你还在演？”<br>你猛地转头——黑暗中，301的女人蹲在你面前，脖子有一道很深的伤口，但她在笑。<br><br>【真相判定】：她爬进来时你没醒。凶手搜了一圈没找到她，以为她跑了。她敲你的门不是求救，是告诉你别出声。地毯上的湿痕是她的淋巴液，美工刀上的血是你自己后脑蹭的。那个凌晨两点零七分，你坐在黑暗里，听着另一个活人的呼吸，躲过了一场连环谋杀。",
-      isEnding: true
-    },
-    end_D: {
-      text: "<strong class='text-purple-500 text-xl'>【结局 D：镜像】</strong><br><br>时间耗尽。门外传来破门锤的声音。砰。砰。门框裂了。<br>你最后看了一眼镜子——镜中的你站了起来，走向门口，打开了门。而你还在沙发上。<br><br>【真相判定】：破门而入的不是警察，是驱魔司的特勤。你死在了三天前的车祸里。你是依附在这个屋子里的执念体，重复着凌晨两点零七分的循环。镜子里的“你”才是真正的你。特勤人员把你从镜面上剥离的时候，你最后看见的是沙发上那具已经开始腐烂的尸体。那是你。",
-      isEnding: true
-    }
-  };
+      phase2_hub: {
+        text: "屋里死一般寂静。你现在必须尽快查清状况。",
+        onEnter: () => {
+          if (state.phase2Actions >= 2 || state.timeRemaining <= 4) {
+            // 时间到了或者探索了2个以上地方，直接锁定推进到终局前置
+            const hub = storyNodesRef.phase2_hub;
+            hub.text = "时间不多了。门外的气氛变了，沉重的脚步声停在门外。你必须立刻做出决断。";
+            hub.choices = [
+              { text: "👉 准备迎接最终的抉择...", next: "phase3_climax", cost: 0 }
+            ];
+          }
+        },
+        choices: [
+          { text: "去后阳台查看 (耗时1分钟)", next: "p2_balcony", cost: 1, key: 'balcony' },
+          { text: "去厨房查看水槽 (耗时1分钟)", next: "p2_kitchen", cost: 1, key: 'kitchen' },
+          { text: "再次检查玄关镜子 (耗时1分钟)", next: "p2_mirror", cost: 1, key: 'mirror' },
+          { text: "趴下检查茶几底部 (耗时1分钟)", next: "p2_table", cost: 1, key: 'table' }
+        ]
+      },
+
+      p2_balcony: {
+        text: "推拉门干涩地响。阳台上没有人。洗衣机旁有一只男士皮鞋，鞋底沾着暗红色，鞋码42——你穿40。<br>你探头往下看。楼下绿化带里有两个人影在用手电筒照地面。角落排水口有明显的拖拽痕迹。",
+        onEnter: () => { sys.addClue({id:'c_shoe', text:'42码沾血男鞋(你穿40)'}); state.phase2Actions++; state.explored['balcony'] = true; },
+        choices: [{ text: "退回客厅", next: "phase2_hub", cost: 0 }]
+      },
+      p2_kitchen: {
+        text: "水龙头拧开。水呈淡粉色，铁锈味冲鼻子。水槽下水口有血丝缠在滤网上。<br>冰箱上贴着一张便利贴，不是你的字迹：<br>『别喝厨房的水 别开灯 他在灯下看得见你』<br>你猛地关掉客厅的灯。黑暗中，阳台方向有微弱的金属反光。",
+        onEnter: () => { sys.addClue({id:'c_note', text:'纸条：别开灯，他在灯下看你'}); state.phase2Actions++; state.explored['kitchen'] = true; },
+        choices: [{ text: "打开灯，退回客厅", next: "phase2_hub", cost: 0 }]
+      },
+      p2_mirror: {
+        text: "借着窗外路灯光看镜子。你的倒影没有呼吸。你盯着看了十秒，胸腔在起伏，镜中的“你”一动不动。<br>你凑近镜面，鼻尖几乎贴上玻璃。镜面上有雾气，但雾气不是从你这边来的。<br>是从镜子里面，往外哈的。",
+        onEnter: () => { sys.addClue({id:'c_mirror_breath', text:'镜内独立起雾，无呼吸'}); state.phase2Actions++; state.explored['mirror'] = true; sys.shake('light'); sys.vibrate(200); },
+        choices: [{ text: "猛地后退", next: "phase2_hub", cost: 0 }]
+      },
+      p2_table: {
+        text: "茶几底下压着一张门禁卡。卡面上印着“3F-301”——你隔壁的女租客。门禁卡上有一点血迹。<br>翻过来看背面，用圆珠笔写了一行小字：<br>『他在你家 别出声 我打了110 别开灯』",
+        onEnter: () => { sys.addClue({id:'c_301', text:'301门禁卡背面警告字迹'}); state.phase2Actions++; state.explored['table'] = true; },
+        choices: [{ text: "攥紧卡片站起来", next: "phase2_hub", cost: 0 }]
+      },
+
+      phase3_climax: {
+        text: "【极度危险】<br>信息已经交汇。门外传来了异样的动静，你必须立刻做出决定！",
+        onEnter: () => { 
+          document.getElementById('story-content').classList.add('text-red-400'); 
+          sys.shake('heavy'); 
+          sys.vibrate([100,50,100,50,300]); 
+        },
+        choices: [
+          { text: "信任老周，开门让他进来", next: "end_A", cost: state.timeRemaining },
+          { text: "冒险从后阳台结绳逃生", next: "end_B", cost: state.timeRemaining },
+          { text: "关掉所有灯，留在屋内绝对不动", next: "end_C", cost: state.timeRemaining }
+        ]
+      },
+
+      end_A: {
+        text: "<strong class='text-red-500 text-xl'>【结局 A：猎人与猎物】</strong><br><br>你解锁开门。老周站在门外，手里拿着一根高尔夫球杆。他进门，目光停在沙发后面半秒。<br>“你往哪看？”<br>“没、没什么。”老周走向你，“我检查了楼道，在楼梯上蹭到了血。”<br>“你说报警了就在楼下等着，但你出现在楼上。”<br>他沉默了三秒。球杆抬起来了。<br><br>【真相判定】：老周是三天前入室抢劫杀人的嫌疑犯。他杀了301的女人，逃到你家时砸晕了你。301女人死前爬进你家，死在你沙发后面。老周敲门是为了确认你是否会暴露他。球杆落下的时候你终于明白：指甲刮门板的声音不是老周在敲门——是301女人死前用指甲刮的，她的尸体就靠在门内侧。",
+        isEnding: true
+      },
+      end_B: {
+        text: "<strong class='text-amber-500 text-xl'>【结局 B：幸存者的拼图】</strong><br><br>你用床单结绳翻出阳台。下降到二楼时绳子断了，你摔在绿化带里，脚踝剧痛，但你活了。你爬出小区报警。<br><br>三天后你回来。警察告诉你，302的老周死在自己屋里，凶手疑似入室盗窃杀人。<br>你想起老周敲门时说“他从阳台进的”。他怎么知道？因为他杀了301的女人后，从你家阳台翻进了302，杀了老周，再翻回来敲你的门。<br><br>【真相判定】：你活下来了。老周不是好人，但你也不是完全无辜——你那天晚上其实醒过一次，看见有人翻进来，你以为是梦，翻了个身继续睡。如果你当时起来，301的女人可能还活着。你搬了家，但每个凌晨两点零七分，你都会惊醒。",
+        isEnding: true
+      },
+      end_C: {
+        text: "<strong class='text-blue-400 text-xl'>【结局 C：沉默同盟】</strong><br><br>你关了所有灯。不发出声音。门外安静了很久。然后，钥匙插进门锁的声音转动。<br>一个人走到客厅中央。一个声音在你耳边：“你还在演？”<br>你猛地转头——黑暗中，301的女人蹲在你面前，脖子有一道很深的伤口，但她在笑。<br><br>【真相判定】：她爬进来时你没醒。凶手搜了一圈没找到她，以为她跑了。她敲你的门不是求救，是告诉你别出声。地毯上的湿痕是她的淋巴液，美工刀上的血是你自己后脑蹭的。那个凌晨两点零七分，你坐在黑暗里，听着另一个活人的呼吸，躲过了一场连环谋杀。",
+        isEnding: true
+      },
+      end_D: {
+        text: "<strong class='text-purple-500 text-xl'>【结局 D：镜像】</strong><br><br>时间耗尽。门外传来破门锤的声音。砰。砰。门框裂了。<br>你最后看了一眼镜子——镜中的你站了起来，走向门口，打开了门。而你还在沙发上。<br><br>【真相判定】：破门而入的不是警察，是驱魔司的特勤。你死在了三天前的车祸里。你是依附在这个屋子里的执念体，重复着凌晨两点零七分的循环。镜子里的“你”才是真正的你。特勤人员把你从镜面上剥离的时候，你最后看见的是沙发上那具已经开始腐烂的尸体. 那是你。",
+        isEnding: true
+      }
+    };
+  }
+
+  let storyNodesRef = null;
 
   function startGame() {
+    state = {
+      timeRemaining: 7, 
+      clues: [],
+      phase2Actions: 0,
+      isTyping: false,
+      explored: {}
+    };
+    document.getElementById('clue-count').innerText = '0';
+    document.getElementById('clues-list').innerHTML = '<li class="italic text-neutral-600">暂无线索，请开始探索...</li>';
+    document.getElementById('conflict-warning').classList.add('hidden');
+    document.getElementById('story-content').classList.remove('text-red-400');
+    
+    storyNodesRef = getStoryNodes();
     document.getElementById('time-display').classList.remove('hidden');
     sys.updateTime(0);
     renderNode('intro');
   }
 
   function renderNode(nodeId) {
-    const node = storyNodes[nodeId];
+    const node = storyNodesRef[nodeId];
     if (node.onEnter) {
       node.onEnter();
     }
 
-    const contentBox = document.getElementById('story-content');
     const optionsBox = document.getElementById('options-container');
     optionsBox.innerHTML = ''; 
     
-    // 如果倒计时归零，强制触发结局 D
+    // 如果时间耗尽，强行切到结局 D
     if (state.timeRemaining <= 0 && !node.isEnding && nodeId !== 'end_D') {
       sys.shake('heavy');
       sys.vibrate([200, 100, 200, 100, 500]);
@@ -308,17 +322,19 @@
 
     typeWriter(node.text, () => {
       if (node.isEnding) {
-        optionsBox.innerHTML = `<button onclick="location.reload()" class="choice-btn w-full bg-red-950 text-red-200 p-4 rounded font-bold tracking-widest border border-red-900 mt-6">时间重置 (再次挑战轮回)</button>`;
+        optionsBox.innerHTML = `<button onclick="startGame()" class="choice-btn w-full bg-red-950 text-red-200 p-4 rounded font-bold tracking-widest border border-red-900 mt-6">时间重置 (再次挑战轮回)</button>`;
         return;
       }
 
       node.choices.forEach(choice => {
-        if (choice.hideIf && state[choice.hideIf]) return; 
+        // 如果是第二轮探索的选项，且已经被探索过了，则隐藏
+        if (choice.key && state.explored[choice.key]) return; 
+
         const btn = document.createElement('button');
         btn.className = "choice-btn w-full text-left bg-neutral-900/80 text-neutral-300 p-4 rounded text-sm leading-relaxed";
         btn.innerHTML = choice.text;
         btn.onclick = () => {
-          if(state.isTyping) return;
+          if (state.isTyping) return;
           sys.vibrate(50);
           sys.updateTime(choice.cost);
           renderNode(choice.next);
@@ -353,7 +369,7 @@
               textSpan.innerHTML += text.charAt(charIdx);
               charIdx++;
               container.scrollTop = container.scrollHeight;
-              setTimeout(typeChar, 12 + Math.random()*18); 
+              setTimeout(typeChar, 10 + Math.random()*15); 
             } else {
               i++;
               appendNode();
@@ -364,17 +380,16 @@
           container.appendChild(node.cloneNode(true));
           container.scrollTop = container.scrollHeight;
           i++;
-          setTimeout(appendNode, 40); 
+          setTimeout(appendNode, 30); 
         }
       } else {
         state.isTyping = false;
-        if(callback) callback();
+        if (callback) callback();
       }
     }
     appendNode();
   }
 
-  // 证据板与逻辑校验
   function toggleClues() {
     const panel = document.getElementById('clues-panel');
     panel.classList.toggle('hidden');
